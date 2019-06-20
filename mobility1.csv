@@ -1,0 +1,41 @@
+"zone","state","region","N","n","n.lowstart","p.upmover"
+"Phoenix","AZ","west",208317,200,33,0.0606060606060606
+"Bakersfield","CA","west",53144,200,40,0.075
+"Fresno","CA","west",109073,200,60,0.0833333333333333
+"Sacramento","CA","west",182421,200,42,0.142857142857143
+"San Francisco","CA","west",270012,200,29,0.137931034482759
+"San Diego","CA","west",175302,200,37,0.0540540540540541
+"Los Angeles","CA","west",1018874,545,115,0.121739130434783
+"Portland","OR","west",131471,200,20,0.1
+"Eugene","OR","west",70709,200,32,0.125
+"Seattle","WA","west",275136,200,27,0.185185185185185
+"Detroit","MI","midwest",392121,200,35,0.0285714285714286
+"Saginaw","MI","midwest",44445,200,29,0
+"Lorain","OH","midwest",36064,200,24,0.0833333333333333
+"Cleveland","OH","midwest",202809,200,26,0.115384615384615
+"Columbus","OH","midwest",120627,200,19,0.0526315789473684
+"Iowa City","IA","midwest",14099,200,15,0.0666666666666667
+"Cedar Rapids","IA","midwest",19330,200,15,0.133333333333333
+"Peoria","IL","midwest",43550,200,18,0.0555555555555556
+"Chicago","IL","midwest",576412,230,33,0.0606060606060606
+"St. Louis","MO","midwest",192619,200,43,0.0465116279069767
+"Erie","PA","northeast",52574,200,37,0.0810810810810811
+"Oneonta","NY","northeast",12619,200,46,0.108695652173913
+"Scranton","PA","northeast",61452,200,23,0.0869565217391304
+"Harrisburg","PA","northeast",78177,200,22,0
+"New York","NY","northeast",660842,427,101,0.0792079207920792
+"Newark","NJ","northeast",361291,234,34,0.0882352941176471
+"Philadelphia","PA","northeast",407579,264,43,0.0697674418604651
+"Boston","MA","northeast",309636,200,31,0.032258064516129
+"Manchester","NH","northeast",91284,200,24,0.0416666666666667
+"Bridgeport","CT","northeast",225772,200,19,0.0526315789473684
+"Winston-Salem","NC","south",33466,200,32,0.09375
+"Charlotte","NC","south",97400,200,44,0.0227272727272727
+"Houma","LA","south",25863,200,45,0.133333333333333
+"Miami","FL","south",236349,200,54,0.037037037037037
+"Greenville","SC","south",63410,200,44,0
+"Chincoteague","VA","south",3625,200,95,0.0526315789473684
+"Tulsa","OK","south",74452,200,53,0.0754716981132075
+"Houston","TX","south",345836,200,46,0.0217391304347826
+"Wichita Falls","TX","south",11444,200,36,0.166666666666667
+"Tyler","TX","south",32217,200,59,0.11864406779661
