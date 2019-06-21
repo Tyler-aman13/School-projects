@@ -1,0 +1,259 @@
+---
+title: "Reproducatbility appendix paper 2"
+author: "Tyler Aman"
+date: "2/20/2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Conceptual preliminaries
+
+## Showcasing proof of Supra-linear model
+\[
+Y = cN^b      c > 0, b > 1 \\
+Y = cN^{\beta + 1}      \beta > 0, b = \beta + 1 \\
+log(Y) = log(c) + (\beta + 1)log(N) \\
+log(Y/N) = \beta_0 + \beta_1log(N)
+\]
+
+## Hypothesized models 
+1. One Hypothesis involves is that by adding proportion of GMP from finance into the model could take it from a super-linear form to a linear form. or in the form of the orignial economic model or: $Y = cN^b prof.tech^d 10^{finance}$ <br />
+under this model $b = 1$  <br />
+2. The second Hypothesis mirrors the first in that this model attempts to again turn population size into a linear variable as apposed to super linear by including the log form of 2 variable: proc.tech and management. so the models form is: $Y = cN^b prof.tech^dmanagement^e$ <br /> $b = 1$
+
+
+# Exploratory Analysis
+
+## Downloading
+
+```{r download & libraries}
+library(ggplot2)
+library(dplyr)
+GMP = read.csv('gmp-2006.csv')
+revisedGMP = read.csv('http://dept.stat.lsa.umich.edu/~bbh/s485/data/gmp-2006-holdout.csv')
+attach(GMP)
+GMP[,'Overall_GMP'] = as.numeric(GMP$pcgmp) * as.numeric(GMP$pop)
+GMP_complete = GMP[complete.cases(GMP),]
+rGMP_cim = revisedGMP[complete.cases(revisedGMP),]
+merge(GMP,rGMP_cim)
+plot(log10(pcgmp) ~ finance)
+plot(log10(pcgmp) ~ log10(prof.tech))
+plot(log10(pcgmp) ~ log10(management))
+```
+
+## Summaries of missing data
+
+```{r missing data}
+for(i in 4:(ncol(GMP)-1)){
+print(colnames(GMP[i]))
+print(mean(is.na(GMP[i])))
+}
+
+#porportion of non-missing variables for each variables and pairs
+for(j in 4:(ncol(GMP)-1)){
+  for(k in 4:(ncol(GMP) - 1)){
+    if(k == j){
+      print(colnames(GMP[j]))
+    }else{
+      print(paste(colnames(GMP[j]), '&', colnames(GMP[k]), sep =' '))
+    }
+    print(mean(complete.cases(data.frame(GMP[j],GMP[k]))))
+  }
+}
+
+#number of total complete cases
+mean(complete.cases(GMP))
+
+```
+As we see from these proportions most varibles have over 50% of non-missing cases however the variables of ict and management only have 39% approximately non-missing cases which could explain the low overall non-missing cases of 37% approximately 
+
+
+
+## Plots of GMP 
+
+all plots are done in the order of Exploratory analysis suggestions and include OLS regression lines(black) and auto fitted lines (Blue) 
+
+```{r GMP plots}
+#plot 1
+datp1 = data.frame(GMP$Overall_GMP, pop)
+ggplot(datp1, aes(pop, GMP$Overall_GMP)) +
+  ggtitle("GMP vs. pop") +
+  geom_point() +
+  geom_smooth(method = 'lm', se=F, color = 'black')  + 
+   geom_smooth(method = 'auto', se=F)
+
+#plot 2
+datp2 = data.frame(log10(GMP$Overall_GMP), pop)
+ggplot(datp2, aes(pop, log10(GMP$Overall_GMP))) +
+  ggtitle("log10(GMP) vs. pop") +
+  geom_point() +
+  geom_smooth(method = 'lm', se=F, color = 'black') +
+  geom_smooth(method = 'auto', se=F)
+
+#plot 3
+datp3 = data.frame(GMP$Overall_GMP, log10(pop))
+ggplot(datp3, aes(log10(pop), GMP$Overall_GMP)) +
+  ggtitle("GMP vs. log10(pop)") +
+  geom_point() +
+  geom_smooth(method = 'auto', se=F) + 
+  geom_smooth(method = 'lm', se=F, color = 'black') 
+
+#plot 4
+datp4 = data.frame(log10(GMP$Overall_GMP), log10(pop))
+ggplot(datp4, aes(log10(pop), log10(GMP$Overall_GMP))) +
+  ggtitle("log10(GMP) vs. log10(pop)") +
+  geom_point() +
+  geom_smooth(method = 'auto', se=F) +
+  geom_smooth(method = 'lm', se=F, color = 'black')
+```
+The 2 plots which seem to have the simpliest structure in terms of fitting are when both variables are on the log scale or when both are not on the log scale.
+
+```{r plots2}
+#plot including prof.tech
+ggplot(datp1, aes(log10(pop), log10(GMP$Overall_GMP))) +
+  ggtitle("GMP vs. pop") +
+  geom_point(aes(size = log10(prof.tech))) +
+  geom_smooth(method = 'lm', se=F, color = 'black')  + 
+  geom_smooth(method = 'auto', se=F)
+#plot including management
+ggplot(datp1, aes(log10(pop), log10(GMP$Overall_GMP))) +
+  ggtitle("GMP vs. pop") +
+  geom_point(aes(size = log10(management)), color = 'red') +
+  geom_smooth(method = 'lm', se=F, color = 'black')  + 
+  geom_smooth(method = 'auto', se=F)
+```
+# Fitting the Power Law Model
+
+```{r power law}
+plmodel = lm(log10(pcgmp) ~ log10(pop), data = GMP_complete)
+summary(plmodel)
+# plot of model
+ggplot(GMP_complete, aes(log10(GMP_complete$pop), log10(GMP_complete$pcgmp))) +
+  ggtitle("log(per-capita GMP) vs. log(pop)") +
+  geom_point() +
+  geom_smooth(method = 'lm', se=F, color = 'black') 
+10^3.82
+```
+to get these estimates back to the form of c and b we need to take the intercept $3.82$ and take it the 10 to that power $10^{3.82} = 6606.934$ for c, and to get b we do $.12 + 1 = 1.12$. <br />
+
+These findings are compatable with the supra-linear model hypothesis as they showcase that $\beta_1 > 0 or b > 1$ as we see that this output is significant at the highest level $p < .0001$
+
+## Residuals plot
+
+```{r resid}
+plot(plmodel)
+```
+
+
+From these residuals versus fitted plot we can see that the residuals seem to be mostly normally distributed and constant variance near the beginning but as we get larger fitted values we seem to see the std erorrs decrease toward the mean this however may be due to fewer values in the upper part however we should be wary of the estimates given by the lm function because of this and possibly look towards other estimates of std error for a better approximation.
+
+## Squared Error loss
+
+
+```{r sel}
+mean((log10(GMP_complete$pcgmp) - plmodel$fitted.values)^2)
+```
+
+##Cross Validation
+
+```{r cv}
+cv.lm <- function(data, formulae, nfolds = 5) {
+  data <- na.omit(data)
+  formulae <- sapply(formulae, as.formula)
+  n <- nrow(data)
+  fold.labels <- sample(rep(1:nfolds, length.out = n))
+  mses <- matrix(NA, nrow = nfolds, 
+                 ncol = length(formulae))
+  colnames <- as.character(formulae)
+  for (fold in 1:nfolds) {
+    test.rows <- which(fold.labels == fold)
+    train <- data[-test.rows, ]
+    test <- data[test.rows, ]
+    for (form in 1:length(formulae)) {
+      current.model <- lm(formula = formulae[[form]], 
+                          data = train)
+      predictions <- predict(current.model, newdata = test)
+      test.responses <- eval(formulae[[form]][[2]], 
+                             envir = test)
+      test.errors <- test.responses - predictions
+      mses[fold, form] <- mean(test.errors^2)
+    }
+  } 
+  return(colMeans(mses))
+}
+formula1 = c('log10(pcgmp) ~ log10(pop)')
+cv.lm(GMP_complete, formula1)
+
+
+```
+
+# Fitting and Assessing alternative models
+## Models
+
+### Alternative 1
+$Y = cN^b10^{\beta_2finance}, b = 1$ <br/>
+or <br/>
+$log10(Y/N) = \beta_0 + \beta_2finance$
+
+### Alternative 2
+$Y = cN^bmanagement^{\beta_2}prof.tech^{\beta_3}, b = 1$ <br />
+or<br />
+$log10(Y/N) = \beta_0  + \beta_2log10(management) + \beta_3log10(prof.tech)$
+
+## Fitting
+```{r fitting}
+alt1model = lm(log10(pcgmp) ~ finance + log10(pop), data = GMP_complete)
+summary(alt1model)
+
+
+alt2model = lm(log10(pcgmp) ~ log10(pop) + log10(management) + log10(prof.tech), data = GMP_complete)
+summary(alt2model)
+
+
+alt3model = lm(log10(pcgmp) ~ finance, data = GMP_complete)
+summary(alt3model)
+
+alt1model_hold = lm(log10(pcgmp) ~ finance + log10(pop), data = rGMP_cim)
+summary(alt1model_hold)
+
+
+```
+
+## Model Performance
+
+```{r Performance}
+#MSE alt1
+mean((log10(GMP_complete$pcgmp) - alt1model$fitted.values)^2)
+altformulas = c('log10(pcgmp) ~ finance + log10(pop)', 'log10(pcgmp) ~ log10(management) + log10(prof.tech) + log10(pop)', 'log10(pcgmp) ~ finance')
+#MSE alt2
+mean((log10(GMP_complete$pcgmp) - alt2model$fitted.values)^2)
+
+
+#MSE alt3
+mean((log10(GMP_complete$pcgmp) - alt3model$fitted.values)^2)
+
+#MSE alt4
+mean((log10(rGMP_cim$pcgmp) - alt1model_hold$fitted.values)^2)
+
+#CV
+cv.lm(GMP_complete, altformulas)
+cv.lm(rGMP_cim, altformulas[1])
+
+#test
+statistic = alt1model_hold$coefficients[3] - alt1model$coefficients[3]/.04119
+pt(statistic, df = 42 - 3)
+```
+
+
+
+
+
+
+
+
+
