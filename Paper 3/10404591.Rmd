@@ -1,0 +1,216 @@
+---
+title: "Unit 3 Paper"
+author: "Tyler Aman"
+date: "4/16/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Download & libraries
+```{r data}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(profileModel)
+library(brglm)
+library(ggplot2)
+wide_dat = read.csv('http://dept.stat.lsa.umich.edu/~bbh/s485/data/security_wide.csv')
+wide_dat1 = wide_dat[,c('school','q38c','q38d','q38h','q38g','q38n','q40a','q38f')]
+wide_dat1 %>% complete.cases() %>% table() %>% kable()
+wide_dat_omit = na.omit(wide_dat1)
+```
+
+## Rasch Model Replication part A
+
+In this section of the appendix the researchers are fitting a Rasch model to gather Coefficents and recreate the model gathered and discussed by Finn & Servoss (2014) on school security. This model has two predictors which are both factors: 
+
+1. The school principle who answered the survey (school) 
+
+2. The question number on the survey which was being answered (item) 
+
+The response variable is a 1 if the item was answered as yes the school does use the school measure and 0 if the school did not have the security measure.
+
+This model assumes that data is Missing at Random (MAR) therefore partial scores for some schools are created with missing data. This was done due to suggestions from lecture unit3c from Stats 485 class by Dr. Hansen 
+
+```{r Rasch}
+( sum_index <- wide_dat1 %>% na.omit() %>% dplyr::select(-school) %>% rowSums()%>% table() %>% kable() ) ## This table shows the amount total number of security measures used by schools who answered all questions
+
+#Takes data and makes it into tall format
+tall_dat <-wide_dat1 %>% tidyr::gather("item", "response",-school)
+
+#fitting the first model
+rasch1 <-glm(response~item+school -1, family=binomial, data=tall_dat)
+
+#showcases that the first model uses same number of coefficents as the model presented in code hints
+school.coef.names <- paste0("school", levels(wide_dat$school))
+table(school.coef.names %in% names(coef(rasch1)) )
+
+#table showing the coefficents assigned to each school based on the security measures
+rasch1_indices <- c(schoolid1011=0,
+                  coef(rasch1)[names(coef(rasch1)) %in% school.coef.names])
+table(round(rasch1_indices)) %>% kable()
+
+```
+
+
+
+## Bootstrapping the model coefficents to check normality part B
+
+For the bootstrapping section of this appendix a parametric type bootstrap was used by suggestion Dr. Ben Hansen during Unit3e lecture for Stats 485. From these resampled distributions school scores will then be fitted to create coefficents using the new sampling distribution giving each school's coefficents a distribution which will be assessed for normality to attempt to correct the  error in variables issue showcased by the data itself. The second R block is purely for ease of computational timing due to simulations taking over an hour. The amount of bootstrap coefficents calculated is B = 100 because it takes approximately 60 seconds to run the simulation 2 times so doing a little less than 120 should give me around an hour worth of simulation time. After, the bootstrap the coefficents seem to showcase inconsisent standard errors and therefore seem unable to be corrected with a error in variables correction and calculating a rMSE for all the coefficents. Another reason for this assumption comes from the fact that under normal distribution assumptions when a normal distribution is scaled we should see a mean of 0 approximately and a std deviation of approximately 1 both of which do not seem to be the case for some of these coefficents
+```{r b, eval=FALSE}
+tall_dat_na = na.omit(tall_dat)
+
+rasch_mod_simulator <-function(){
+  probs <-predict(rasch1, newdata = tall_dat, type='response')
+  data.frame(response=rbinom(length(probs), 1, probs),school = 
+               tall_dat$school, item = tall_dat$item)
+}
+rasch_mod_simulator()
+
+#This is the statistics function to return the coefficents for the school
+school_coef_stats <- function(bootspl) {
+    refitted_mod <- update(rasch1, data=bootspl)
+    thecoefs <- coef(refitted_mod)
+    thecoefs <- thecoefs[names(thecoefs) %in% school.coef.names]
+    if (any(!(school.coef.names %in% names(thecoefs))))
+    {
+        leftout <- setdiff(school.coef.names, names(thecoefs))
+        morecoefs <- c(0, rep(NA, length(leftout)-1))
+        names(morecoefs) <- leftout
+        return(c(morecoefs, thecoefs)[school.coef.names])
+        } else return(thecoefs[school.coef.names])
+}
+#Test to see is statistics function works 
+all.equal(school_coef_stats(tall_dat),rasch1_indices)
+
+
+#the bootstrapping process
+bootup <- function(statistic, simulator, B) {
+    boots <- replicate(B, statistic(simulator()))
+    if (is.null(dim(boots))) {
+        boots <- array(boots, dim = c(1, B))
+    }
+    return(boots)
+}
+
+system.time(bootup(school_coef_stats, rasch_mod_simulator, B = 2))
+set.seed(134)
+bootup_coeffs = bootup(school_coef_stats, rasch_mod_simulator, B = 100)
+save(bootup_coeffs, bootup,school_coef_stats,rasch_mod_simulator,  file="bootsup.RData")
+```
+
+
+
+```{r eval = TRUE}
+load( file="bootsup.RData")
+set.seed(8)
+schools = sample(656, 10)
+schools
+apply(bootup_coeffs[schools,], 1, summary)
+round(apply(scale(bootup_coeffs[schools,]), 1, mean),3) %>%
+kable() 
+  
+round(apply(bootup_coeffs[schools,], 1, sd),3) %>% kable()
+boxplot(apply(bootup_coeffs[schools,], 1, scale), main = 'distributions of coefficients')
+```
+due to the boxplots and variance showcasing differences from normal distributions with common variance rMSE is not calculated for these coefficients and corrections from the error-in-variables problem cannot be done. 
+
+
+## Fitting an alternative models part c 
+In this section two different models will be fit. First a model using different questions than the Finn & Servoss but under the same Rasch style using glm. Next using the same alternative questions to be used by the alternative model, a model will be fit using the R function brglm to attempt to limit the bias in the coefficents by using a Baysian method. To attempt to create the new index questions were looked at in the following way: <br/>
+<br/>
+1. get the proportion of yes and no anwsers for each question used in the original index and those not in the index <br/>
+2. look through the questions to determine which seemed suitable to add compared to those already in the index <br/>
+<br/>
+Once this was done both models were fitted using the same rasch techniques used before. The questions being used are the following: <br/>
+<br/>
+1. 38a: control access to school buildings during school hours <br/>
+
+2. 38k: require clear book bags or no book bags on school grounds <br/>
+
+3. 38l: Require students to wear badges or picture IDs <br/>
+
+4. 38p: provide an emergency alarm or call button in most classrooms <br/>
+
+5. 39c: have a program that involves parents at school helping to mantain school discipline <br/>
+
+6. 40c: security at selected school activities <br/>
+
+7. 40d security when school/school activities were not occurring <br/>
+
+
+```{r alternative}
+#the proportions of similar answers for just the index questions 
+colMeans(wide_dat[,-1], na.rm = T) %>% kable()
+for(i in 2:ncol(wide_dat_omit)){
+  print(colnames(wide_dat1)[i])
+  print(mean(wide_dat1$q38g == wide_dat1[,i], na.rm = T))
+}
+
+
+#ordered proportions for all questions 
+item_prop = colMeans(na.omit(wide_dat[,-1]))
+highest = order(colMeans(na.omit(wide_dat[,-1])))
+item_prop[highest] 
+
+#the alternative  model dataset
+
+wide_dat_alt = wide_dat[,c('school','q38a','q38k','q38l','q38p','q39c','q40c','q40d')]
+for(i in 2:ncol(wide_dat_alt)){
+print(colnames(wide_dat_alt)[i])
+print(mean(wide_dat_alt$q38a == wide_dat_alt[,i], na.rm = T))
+}
+#basic statstics about the dataset
+wide_dat_alt %>% complete.cases() %>% table() %>% kable()
+( sum_index_alt <- wide_dat_alt %>% na.omit() %>% dplyr::select(-school) %>% rowSums()%>% table() %>% kable() )
+
+#Takes data and makes it into tall format
+tall_dat_alt <-wide_dat_alt %>% tidyr::gather("item", "response",-school)
+
+#fitting the first model
+rasch_alt <-glm(response~item+school -1, family=binomial, data=tall_dat_alt)
+raschalt_indices <- c(schoolid1011=0,
+                  coef(rasch_alt)[names(coef(rasch_alt)) %in% school.coef.names])
+table(round(raschalt_indices)) %>% kable()
+
+#second alternative using brglm
+rasch_alt2 <- brglm(response~item+school -1, family=binomial, data=tall_dat_alt)
+raschalt2_indices <- c(schoolid1011=0,
+                  coef(rasch_alt2)[names(coef(rasch_alt2)) %in% school.coef.names])
+table(round(raschalt2_indices)) %>% kable()
+```
+
+
+
+## Comparing the order for each model part D
+
+In this section a comparsion of the original rasch model's coefficents is compared to the brglm model's coefficents. This is done through seeing the rank of the coefficents for each model and comparing the differences. The numerical output to showcase the relationship between the two models' coefficents is the Kendall Tau correlation which looks at the ranking of two variables and compares where each model places the schools coefficents in terms of the other, by looking at if the samples are ordered in the same way or in different ways. 
+
+The Kendall Tau coefficient is calculated as so:
+
+\[
+\tau = \frac{n_c - n_d}{n(n-1)/2} \\
+\]
+
+where: $n_c = $the number of concordant pairs
+
+and $n_d = $the number of discordant pairs
+
+That is to say when observations seems to share a similar structure (i.e a is above b in order in both variables) this is a concordant pair where different structures (i.e a is above b in one varible but below b in another) is a discordant pair. This leads to: $-1 \leq \tau \leq 1$ giving a simple interpretation of a positive coefficent showcases similarity in order where a negative coefficent shows a reverse ordered relationship, with zero showcasing no relationship between the order.
+
+
+```{r order}
+sum(rank(rasch1_indices) == rank(raschalt2_indices))
+cor(rank(rasch1_indices),rank(raschalt2_indices), method = 'kendal')
+rank_data = data.frame(rank(rasch1_indices),rank(raschalt2_indices),abs(rank(rasch1_indices)-rank(raschalt2_indices)))
+colnames(rank_data) = c('rank_FS','rank_alt2','rank_diff')
+ggplot(rank_data, aes(rank_FS, rank_alt2)) +
+  ggtitle('Ranks of coefficents under each model') +
+  geom_point(aes(colour = rank_data$rank_diff))
+
+```
